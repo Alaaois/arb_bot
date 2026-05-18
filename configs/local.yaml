@@ -1,0 +1,65 @@
+app:
+  environment: local
+  log_level: debug
+  admin_addr: ":8080"
+
+trading:
+  enabled: false
+  mode: analysis
+  symbols:
+    - BTC/USDT
+    - ETH/USDT
+    - DOGE/USDT
+    - SOL/USDT
+
+exchanges:
+  bybit:
+    enabled: true
+  okx:
+    enabled: true
+  htx:
+    enabled: true
+  kucoin:
+    enabled: true
+
+fees:
+  bybit:
+    maker_pct: 0.10
+    taker_pct: 0.10
+  okx:
+    maker_pct: 0.08
+    taker_pct: 0.10
+  htx:
+    maker_pct: 0.20
+    taker_pct: 0.20
+  kucoin:
+    maker_pct: 0.10
+    taker_pct: 0.10
+
+risk:
+  max_trade_usd: 100
+  max_daily_volume_usd: 1000
+  max_daily_loss_usd: 50
+  min_profit_pct: 0.10
+  min_profit_usd: 0.50
+  max_slippage_pct: 0.10
+  max_orderbook_age_ms: 500
+  stop_after_consecutive_failures: 3
+
+strategy:
+  max_depth_levels: 5
+  min_top_spread_pct: 0.08
+
+execution:
+  order_type: limit_ioc
+  retry_count: 1
+  order_timeout_ms: 800
+  cancel_unfilled_after_ms: 500
+  manual_intervention_on_partial_fill: true
+
+storage:
+  redis_enabled: true
+  redis_addr: "redis:6379"
+  redis_db: 0
+  redis_history_limit: 10000
+  redis_operation_timeout_ms: 500

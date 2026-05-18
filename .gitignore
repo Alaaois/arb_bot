@@ -1,0 +1,50 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go vendor directory
+vendor/
+
+# Build output
+bin/
+/out/
+
+# Project binary (built in root)
+/arb-bot
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker volumes and data
+redis-data/
+postgres-data/
+
+# Local config overrides
+configs/local.override.yaml
+
+# Temporary files
+tmp/
+temp/
+*.log
