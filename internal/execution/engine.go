@@ -34,8 +34,8 @@ type Engine struct {
 type Result struct {
 	OpportunityID string
 	Mode          Mode
-	BuyOrder      exchange.OrderResult
-	SellOrder     exchange.OrderResult
+	LongOrder     exchange.OrderResult
+	ShortOrder    exchange.OrderResult
 	Status        string
 	StartedAt     time.Time
 	FinishedAt    time.Time
@@ -57,21 +57,21 @@ func (e Engine) Execute(ctx context.Context, opportunity strategy.Opportunity) (
 		return Result{
 			OpportunityID: opportunity.ID,
 			Mode:          e.mode,
-			BuyOrder:      paperOrder(opportunity, exchange.Buy),
-			SellOrder:     paperOrder(opportunity, exchange.Sell),
-			Status:        "paper_filled",
+			LongOrder:     paperOrder(opportunity, exchange.Buy),
+			ShortOrder:    paperOrder(opportunity, exchange.Sell),
+			Status:        "paper_open",
 			StartedAt:     startedAt,
 			FinishedAt:    time.Now().UTC(),
 		}, nil
 	}
 
-	buyConnector, ok := e.connectors[opportunity.BuyExchange]
+	longConnector, ok := e.connectors[opportunity.LongExchange]
 	if !ok {
-		return Result{}, fmt.Errorf("missing buy connector: %s", opportunity.BuyExchange)
+		return Result{}, fmt.Errorf("missing long connector: %s", opportunity.LongExchange)
 	}
-	sellConnector, ok := e.connectors[opportunity.SellExchange]
+	shortConnector, ok := e.connectors[opportunity.ShortExchange]
 	if !ok {
-		return Result{}, fmt.Errorf("missing sell connector: %s", opportunity.SellExchange)
+		return Result{}, fmt.Errorf("missing short connector: %s", opportunity.ShortExchange)
 	}
 
 	orderCtx, cancel := context.WithTimeout(ctx, e.timeout)
@@ -85,12 +85,12 @@ func (e Engine) Execute(ctx context.Context, opportunity strategy.Opportunity) (
 	responses := make(chan orderResponse, 2)
 
 	go func() {
-		result, err := buyConnector.PlaceOrder(orderCtx, e.orderRequest(opportunity, exchange.Buy))
+		result, err := longConnector.PlaceOrder(orderCtx, e.orderRequest(opportunity, exchange.Buy))
 		responses <- orderResponse{side: exchange.Buy, result: result, err: err}
 	}()
 
 	go func() {
-		result, err := sellConnector.PlaceOrder(orderCtx, e.orderRequest(opportunity, exchange.Sell))
+		result, err := shortConnector.PlaceOrder(orderCtx, e.orderRequest(opportunity, exchange.Sell))
 		responses <- orderResponse{side: exchange.Sell, result: result, err: err}
 	}()
 
@@ -109,23 +109,23 @@ func (e Engine) Execute(ctx context.Context, opportunity strategy.Opportunity) (
 			continue
 		}
 		if response.side == exchange.Buy {
-			result.BuyOrder = response.result
+			result.LongOrder = response.result
 		} else {
-			result.SellOrder = response.result
+			result.ShortOrder = response.result
 		}
 	}
 
 	result.FinishedAt = time.Now().UTC()
 	if result.Status == "submitted" {
-		result.Status = "placed"
+		result.Status = "live_open"
 	}
 	return result, nil
 }
 
 func (e Engine) orderRequest(opportunity strategy.Opportunity, side exchange.OrderSide) exchange.OrderRequest {
-	price := opportunity.BuyPrice
+	price := opportunity.LongEntryPrice
 	if side == exchange.Sell {
-		price = opportunity.SellPrice
+		price = opportunity.ShortEntryPrice
 	}
 	return exchange.OrderRequest{
 		ClientOrderID: fmt.Sprintf("%s-%s", opportunity.ID, side),
@@ -138,11 +138,11 @@ func (e Engine) orderRequest(opportunity strategy.Opportunity, side exchange.Ord
 }
 
 func paperOrder(opportunity strategy.Opportunity, side exchange.OrderSide) exchange.OrderResult {
-	price := opportunity.BuyPrice
-	exchangeName := opportunity.BuyExchange
+	price := opportunity.LongEntryPrice
+	exchangeName := opportunity.LongExchange
 	if side == exchange.Sell {
-		price = opportunity.SellPrice
-		exchangeName = opportunity.SellExchange
+		price = opportunity.ShortEntryPrice
+		exchangeName = opportunity.ShortExchange
 	}
 	return exchange.OrderResult{
 		Exchange:       exchangeName,

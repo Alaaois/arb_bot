@@ -3,6 +3,7 @@ package risk
 import (
 	"context"
 	"testing"
+	"time"
 
 	"crypto-arbitrage-bot/internal/exchange"
 	"crypto-arbitrage-bot/internal/strategy"
@@ -10,19 +11,22 @@ import (
 
 func TestRiskEngineApprovesValidOpportunity(t *testing.T) {
 	engine := NewEngine(Config{
-		MaxTradeUSD:  100,
-		MinProfitUSD: 1,
-		MinProfitPct: 0.2,
+		MaxTradeUSD:      100,
+		MinProfitUSD:     1,
+		MinProfitPct:     0.2,
+		MinTimeToFunding: time.Minute,
 	})
 
 	decision := engine.Check(context.Background(), strategy.Opportunity{
-		Symbol:       "BTC/USDT",
-		BuyExchange:  exchange.Bybit,
-		SellExchange: exchange.OKX,
-		Quantity:     1,
-		NotionalUSD:  50,
-		NetProfit:    2,
-		NetProfitPct: 4,
+		Symbol:               "BTC/USDT",
+		LongExchange:         exchange.Bybit,
+		ShortExchange:        exchange.OKX,
+		Quantity:             0.5,
+		LongEntryPrice:       100,
+		ExpectedNetProfitUSD: 2,
+		ExpectedNetProfitPct: 4,
+		NetFundingRatePct:    0.02,
+		TargetFundingTime:    time.Now().Add(5 * time.Minute),
 	})
 
 	if !decision.Approved {
@@ -32,19 +36,22 @@ func TestRiskEngineApprovesValidOpportunity(t *testing.T) {
 
 func TestRiskEngineRejectsLowProfit(t *testing.T) {
 	engine := NewEngine(Config{
-		MaxTradeUSD:  100,
-		MinProfitUSD: 1,
-		MinProfitPct: 0.2,
+		MaxTradeUSD:      100,
+		MinProfitUSD:     1,
+		MinProfitPct:     0.2,
+		MinTimeToFunding: time.Minute,
 	})
 
 	decision := engine.Check(context.Background(), strategy.Opportunity{
-		Symbol:       "BTC/USDT",
-		BuyExchange:  exchange.Bybit,
-		SellExchange: exchange.OKX,
-		Quantity:     1,
-		NotionalUSD:  50,
-		NetProfit:    0.5,
-		NetProfitPct: 1,
+		Symbol:               "BTC/USDT",
+		LongExchange:         exchange.Bybit,
+		ShortExchange:        exchange.OKX,
+		Quantity:             0.5,
+		LongEntryPrice:       100,
+		ExpectedNetProfitUSD: 0.5,
+		ExpectedNetProfitPct: 1,
+		NetFundingRatePct:    0.02,
+		TargetFundingTime:    time.Now().Add(5 * time.Minute),
 	})
 
 	if decision.Approved {

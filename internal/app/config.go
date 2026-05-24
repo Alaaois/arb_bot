@@ -54,8 +54,14 @@ type RiskConfig struct {
 }
 
 type StrategyConfig struct {
-	MaxDepthLevels  int
-	MinTopSpreadPct float64
+	MaxDepthLevels        int
+	MinExpectedCarryPct   float64
+	MinExpectedCarryUSD   float64
+	BasisRiskPct          float64
+	DefaultFundingRatePct float64
+	FundingInterval       time.Duration
+	MinTimeToFunding      time.Duration
+	MaxHoldTime           time.Duration
 }
 
 type ExecutionConfig struct {
@@ -94,10 +100,10 @@ func DefaultConfig() Config {
 			"kucoin": {Enabled: true},
 		},
 		Fees: map[string]FeeConfig{
-			"bybit":  {MakerPct: 0.10, TakerPct: 0.10},
-			"okx":    {MakerPct: 0.08, TakerPct: 0.10},
-			"htx":    {MakerPct: 0.20, TakerPct: 0.20},
-			"kucoin": {MakerPct: 0.10, TakerPct: 0.10},
+			"bybit":  {MakerPct: 0.02, TakerPct: 0.055},
+			"okx":    {MakerPct: 0.02, TakerPct: 0.05},
+			"htx":    {MakerPct: 0.02, TakerPct: 0.06},
+			"kucoin": {MakerPct: 0.02, TakerPct: 0.06},
 		},
 		Risk: RiskConfig{
 			MaxTradeUSD:                  100,
@@ -110,8 +116,14 @@ func DefaultConfig() Config {
 			StopAfterConsecutiveFailures: 3,
 		},
 		Strategy: StrategyConfig{
-			MaxDepthLevels:  5,
-			MinTopSpreadPct: 0.05,
+			MaxDepthLevels:        5,
+			MinExpectedCarryPct:   0.05,
+			MinExpectedCarryUSD:   0.25,
+			BasisRiskPct:          0.03,
+			DefaultFundingRatePct: 0.01,
+			FundingInterval:       8 * time.Hour,
+			MinTimeToFunding:      15 * time.Minute,
+			MaxHoldTime:           9 * time.Hour,
 		},
 		Execution: ExecutionConfig{
 			OrderType:                       "limit_ioc",
@@ -235,6 +247,8 @@ func applyConfigValue(cfg *Config, section, exchange, key, value string) error {
 		return applyFeeValue(cfg, exchange, key, value)
 	case "risk":
 		return applyRiskValue(&cfg.Risk, key, value)
+	case "strategy":
+		return applyStrategyValue(&cfg.Strategy, key, value)
 	case "execution":
 		return applyExecutionValue(&cfg.Execution, key, value)
 	case "storage":
@@ -284,6 +298,8 @@ func applyRiskValue(cfg *RiskConfig, key, value string) error {
 		cfg.MaxOrderBookAge = time.Duration(ms) * time.Millisecond
 	case "stop_after_consecutive_failures":
 		return parseIntInto(value, &cfg.StopAfterConsecutiveFailures)
+	case "max_open_positions":
+		return nil
 	}
 	return nil
 }
@@ -292,8 +308,32 @@ func applyStrategyValue(cfg *StrategyConfig, key, value string) error {
 	switch key {
 	case "max_depth_levels":
 		return parseIntInto(value, &cfg.MaxDepthLevels)
-	case "min_top_spread_pct":
-		return parseFloatInto(value, &cfg.MinTopSpreadPct)
+	case "min_expected_carry_pct":
+		return parseFloatInto(value, &cfg.MinExpectedCarryPct)
+	case "min_expected_carry_usd":
+		return parseFloatInto(value, &cfg.MinExpectedCarryUSD)
+	case "basis_risk_pct":
+		return parseFloatInto(value, &cfg.BasisRiskPct)
+	case "default_funding_rate_pct":
+		return parseFloatInto(value, &cfg.DefaultFundingRatePct)
+	case "funding_interval_minutes":
+		ms, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.FundingInterval = time.Duration(ms) * time.Minute
+	case "min_time_to_funding_minutes":
+		ms, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.MinTimeToFunding = time.Duration(ms) * time.Minute
+	case "max_hold_time_minutes":
+		ms, err := strconv.Atoi(value)
+		if err != nil {
+			return err
+		}
+		cfg.MaxHoldTime = time.Duration(ms) * time.Minute
 	}
 	return nil
 }

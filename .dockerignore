@@ -1,0 +1,10 @@
+.git
+.gitignore
+.gocache
+bin
+coverage
+dist
+build
+tmp
+*.log
+README.local.md

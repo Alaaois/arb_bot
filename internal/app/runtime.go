@@ -14,6 +14,7 @@ import (
 	"crypto-arbitrage-bot/internal/exchange/kucoin"
 	"crypto-arbitrage-bot/internal/exchange/okx"
 	"crypto-arbitrage-bot/internal/execution"
+	"crypto-arbitrage-bot/internal/funding"
 	"crypto-arbitrage-bot/internal/marketdata"
 	"crypto-arbitrage-bot/internal/risk"
 	"crypto-arbitrage-bot/internal/state"
@@ -26,7 +27,9 @@ type Runtime struct {
 	logger        *slog.Logger
 	connectors    map[exchange.Name]exchange.Connector
 	books         *marketdata.Store
+	funding       *funding.Store
 	opportunities *state.OpportunityLog
+	positions     *state.PositionBook
 	storage       *storage.Store
 	scanner       *Scanner
 	apiServer     *http.Server
@@ -35,7 +38,12 @@ type Runtime struct {
 func NewRuntime(cfg Config, logger *slog.Logger) (*Runtime, error) {
 	connectors := buildConnectors(cfg)
 	books := marketdata.NewStore()
+	fundingStore := funding.NewStore(funding.Config{
+		DefaultRatePct:  cfg.Strategy.DefaultFundingRatePct,
+		FundingInterval: cfg.Strategy.FundingInterval,
+	})
 	opportunities := state.NewOpportunityLog(100)
+	positions := state.NewPositionBook(100)
 	storageStore := storage.NewStore(storage.Config{
 		Enabled:          cfg.Storage.RedisEnabled,
 		Addr:             cfg.Storage.RedisAddr,
@@ -54,12 +62,15 @@ func NewRuntime(cfg Config, logger *slog.Logger) (*Runtime, error) {
 		Books:     books,
 		Estimator: strategy.NewEstimator(),
 		Risk: risk.NewEngine(risk.Config{
-			MaxTradeUSD:  cfg.Risk.MaxTradeUSD,
-			MinProfitUSD: cfg.Risk.MinProfitUSD,
-			MinProfitPct: cfg.Risk.MinProfitPct,
+			MaxTradeUSD:      cfg.Risk.MaxTradeUSD,
+			MinProfitUSD:     cfg.Risk.MinProfitUSD,
+			MinProfitPct:     cfg.Risk.MinProfitPct,
+			MinTimeToFunding: cfg.Strategy.MinTimeToFunding,
 		}),
+		Funding:       fundingStore,
 		Execution:     executionEngine,
 		Opportunities: opportunities,
+		Positions:     positions,
 		Storage:       storageStore,
 		Logger:        logger,
 	})
@@ -69,7 +80,9 @@ func NewRuntime(cfg Config, logger *slog.Logger) (*Runtime, error) {
 		TradingMode:   cfg.Trading.Mode,
 		Connectors:    connectors,
 		Books:         books,
+		Funding:       fundingStore,
 		Opportunities: opportunities,
+		Positions:     positions,
 		Storage:       storageStore,
 		Fees:          feeView(cfg.Fees),
 		Logger:        logger,
@@ -80,7 +93,9 @@ func NewRuntime(cfg Config, logger *slog.Logger) (*Runtime, error) {
 		logger:        logger,
 		connectors:    connectors,
 		books:         books,
+		funding:       fundingStore,
 		opportunities: opportunities,
+		positions:     positions,
 		storage:       storageStore,
 		scanner:       scanner,
 		apiServer:     server,
@@ -153,6 +168,7 @@ func (r *Runtime) runScanner(ctx context.Context, updates <-chan exchange.OrderB
 			return
 		case update := <-updates:
 			r.books.Apply(update)
+			r.funding.ApplySyntheticFromOrderBook(update)
 			r.storage.Enqueue(storage.Event{Type: storage.EventOrderBook, OrderBook: update})
 			r.scanner.OnOrderBookUpdate(ctx, update)
 		}

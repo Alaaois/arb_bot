@@ -10,15 +10,14 @@ import (
 
 	"crypto-arbitrage-bot/internal/exchange"
 	"crypto-arbitrage-bot/internal/state"
-	"crypto-arbitrage-bot/internal/strategy"
 
 	"github.com/redis/go-redis/v9"
 )
 
 const (
 	keyOrderBookLatest = "arb:orderbooks:latest"
-	keySpreadHistory   = "arb:history:spreads"
 	keyOpportunityHist = "arb:history:opportunities"
+	keyPositionHist    = "arb:history:positions"
 )
 
 type Config struct {
@@ -41,30 +40,15 @@ type EventType string
 
 const (
 	EventOrderBook   EventType = "orderbook"
-	EventSpread      EventType = "spread"
 	EventOpportunity EventType = "opportunity"
+	EventPosition    EventType = "position"
 )
 
 type Event struct {
 	Type        EventType
 	OrderBook   exchange.OrderBookSnapshot
-	Spread      SpreadRecord
 	Opportunity state.OpportunityRecord
-}
-
-type SpreadRecord struct {
-	ID           string        `json:"id"`
-	Symbol       string        `json:"symbol"`
-	BuyExchange  exchange.Name `json:"buy_exchange"`
-	SellExchange exchange.Name `json:"sell_exchange"`
-	BuyPrice     float64       `json:"buy_price"`
-	SellPrice    float64       `json:"sell_price"`
-	Quantity     float64       `json:"quantity"`
-	NotionalUSD  float64       `json:"notional_usd"`
-	GrossProfit  float64       `json:"gross_profit"`
-	NetProfit    float64       `json:"net_profit"`
-	NetProfitPct float64       `json:"net_profit_pct"`
-	DetectedAt   time.Time     `json:"detected_at"`
+	Position    state.Position
 }
 
 func NewStore(cfg Config, logger *slog.Logger) *Store {
@@ -127,20 +111,20 @@ func (s *Store) Enqueue(event Event) {
 	}
 }
 
-func (s *Store) RecentSpreads(ctx context.Context, limit int64) ([]SpreadRecord, error) {
+func (s *Store) RecentPositions(ctx context.Context, limit int64) ([]state.Position, error) {
 	if s == nil || !s.cfg.Enabled {
 		return nil, errors.New("redis storage disabled")
 	}
 	if limit <= 0 {
 		limit = 100
 	}
-	values, err := s.lrange(ctx, keySpreadHistory, limit)
+	values, err := s.lrange(ctx, keyPositionHist, limit)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]SpreadRecord, 0, len(values))
+	out := make([]state.Position, 0, len(values))
 	for _, value := range values {
-		var record SpreadRecord
+		var record state.Position
 		if json.Unmarshal([]byte(value), &record) == nil {
 			out = append(out, record)
 		}
@@ -176,10 +160,10 @@ func (s *Store) writeEvent(ctx context.Context, event Event) error {
 	switch event.Type {
 	case EventOrderBook:
 		return s.writeOrderBook(eventCtx, event.OrderBook)
-	case EventSpread:
-		return s.pushJSON(eventCtx, keySpreadHistory, event.Spread)
 	case EventOpportunity:
 		return s.pushJSON(eventCtx, keyOpportunityHist, event.Opportunity)
+	case EventPosition:
+		return s.pushJSON(eventCtx, keyPositionHist, event.Position)
 	default:
 		return fmt.Errorf("unknown storage event type: %s", event.Type)
 	}
@@ -210,21 +194,4 @@ func (s *Store) lrange(ctx context.Context, key string, limit int64) ([]string, 
 	opCtx, cancel := context.WithTimeout(ctx, s.cfg.OperationTimeout)
 	defer cancel()
 	return s.client.LRange(opCtx, key, 0, limit-1).Result()
-}
-
-func SpreadFromOpportunity(opportunity strategy.Opportunity) SpreadRecord {
-	return SpreadRecord{
-		ID:           opportunity.ID,
-		Symbol:       opportunity.Symbol,
-		BuyExchange:  opportunity.BuyExchange,
-		SellExchange: opportunity.SellExchange,
-		BuyPrice:     opportunity.BuyPrice,
-		SellPrice:    opportunity.SellPrice,
-		Quantity:     opportunity.Quantity,
-		NotionalUSD:  opportunity.NotionalUSD,
-		GrossProfit:  opportunity.GrossProfit,
-		NetProfit:    opportunity.NetProfit,
-		NetProfitPct: opportunity.NetProfitPct,
-		DetectedAt:   opportunity.DetectedAt,
-	}
 }

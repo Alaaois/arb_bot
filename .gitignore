@@ -48,3 +48,5 @@ configs/local.override.yaml
 tmp/
 temp/
 *.log
+/docs
+.gocache

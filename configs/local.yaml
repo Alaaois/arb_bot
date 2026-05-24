@@ -23,18 +23,21 @@ exchanges:
     enabled: true
 
 fees:
+  # Futures/perpetual base fees, updated May 24, 2026 from official exchange fee pages.
+  # Assumption: default retail/non-VIP tier. Actual account-level fees can differ by region,
+  # VIP level, promotions, or instrument class.
   bybit:
-    maker_pct: 0.10
-    taker_pct: 0.10
+    maker_pct: 0.02
+    taker_pct: 0.055
   okx:
-    maker_pct: 0.08
-    taker_pct: 0.10
+    maker_pct: 0.02
+    taker_pct: 0.05
   htx:
-    maker_pct: 0.20
-    taker_pct: 0.20
+    maker_pct: 0.02
+    taker_pct: 0.06
   kucoin:
-    maker_pct: 0.10
-    taker_pct: 0.10
+    maker_pct: 0.02
+    taker_pct: 0.06
 
 risk:
   max_trade_usd: 100
@@ -48,7 +51,13 @@ risk:
 
 strategy:
   max_depth_levels: 5
-  min_top_spread_pct: 0.08
+  min_expected_carry_pct: 0.08
+  min_expected_carry_usd: 0.50
+  basis_risk_pct: 0.03
+  default_funding_rate_pct: 0.01
+  funding_interval_minutes: 480
+  min_time_to_funding_minutes: 15
+  max_hold_time_minutes: 540
 
 execution:
   order_type: limit_ioc
