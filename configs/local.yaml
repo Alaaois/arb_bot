@@ -9,8 +9,12 @@ trading:
   symbols:
     - BTC/USDT
     - ETH/USDT
-    - DOGE/USDT
+    - BNB/USDT
+    - XRP/USDT
     - SOL/USDT
+    - DOGE/USDT
+    - LINK/USDT
+    - TON/USDT
 
 exchanges:
   bybit:

@@ -79,3 +79,35 @@ docker compose logs -f arb-bot
 ```
 
 История одобренных возможностей и paper positions сохраняется в Redis volume `redis-data`, поэтому после перезапуска контейнеров данные не теряются, пока volume не удален.
+
+## Windows Stats Collection
+
+Для недельного сбора снимков API на Windows используй PowerShell-скрипт [collect-stats.ps1](/Users/alaaois/arb_bot/scripts/collect-stats.ps1:1).
+
+Запуск из PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\collect-stats.ps1
+```
+
+Пример с явными параметрами:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\collect-stats.ps1 `
+  -BaseUrl "http://127.0.0.1:8080" `
+  -OutputDir ".\stats" `
+  -IntervalMinutes 5 `
+  -DurationDays 7
+```
+
+Скрипт сохраняет JSON-снимки по папкам:
+
+- `stats\health`
+- `stats\funding`
+- `stats\opportunities`
+- `stats\positions`
+- `stats\positions-history`
+- `stats\pnl`
+- `stats\logs\collector.log`
+
+После завершения можно заархивировать папку `stats` и передать её для анализа.
