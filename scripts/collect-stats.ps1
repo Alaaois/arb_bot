@@ -2,7 +2,8 @@ param(
     [string]$BaseUrl = "http://127.0.0.1:8080",
     [string]$OutputDir = ".\stats",
     [int]$IntervalMinutes = 5,
-    [int]$DurationDays = 7
+    [int]$DurationDays = 7,
+    [switch]$ZipOnFinish
 )
 
 $ErrorActionPreference = "Stop"
@@ -78,3 +79,15 @@ while ((Get-Date) -lt $endTime) {
 }
 
 Write-CollectorLog "collector finished"
+
+if ($ZipOnFinish) {
+    $resolvedOutputDir = (Resolve-Path $OutputDir).Path
+    $zipPath = "{0}-{1}.zip" -f $resolvedOutputDir.TrimEnd('\'), (Get-Date -Format "yyyyMMdd-HHmmss")
+    try {
+        Compress-Archive -Path (Join-Path $resolvedOutputDir "*") -DestinationPath $zipPath -Force
+        Write-CollectorLog "archive created -> $zipPath"
+    }
+    catch {
+        Write-CollectorLog "archive failed -> $($_.Exception.Message)"
+    }
+}

@@ -97,7 +97,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\collect-stats.ps1 `
   -BaseUrl "http://127.0.0.1:8080" `
   -OutputDir ".\stats" `
   -IntervalMinutes 5 `
-  -DurationDays 7
+  -DurationDays 7 `
+  -ZipOnFinish
 ```
 
 Скрипт сохраняет JSON-снимки по папкам:
@@ -111,3 +112,5 @@ powershell -ExecutionPolicy Bypass -File .\scripts\collect-stats.ps1 `
 - `stats\logs\collector.log`
 
 После завершения можно заархивировать папку `stats` и передать её для анализа.
+
+Если указан флаг `-ZipOnFinish`, скрипт сам создаст архив рядом с папкой `stats` после завершения сбора.
